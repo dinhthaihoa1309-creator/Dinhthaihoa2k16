@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghi chú & Code</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1e1e1e; color: #d4d4d4; display: flex; height: 100vh; }
+        #sidebar { width: 260px; background: #252526; border-right: 1px solid #3c3c3c; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; border-bottom: 1px solid #3c3c3c; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header h2 { font-size: 16px; color: #cccccc; }
+        button { background: #0e639c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        button:hover { background: #1177bb; }
+        .btn-sec { background: #3c3c3c; }
+        .btn-sec:hover { background: #505050; }
+        #note-list { list-style: none; overflow-y: auto; flex: 1; }
+        #note-list li { padding: 12px 15px; border-bottom: 1px solid #2d2d2d; cursor: pointer; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        #note-list li:hover, #note-list li.active { background: #37373d; }
+        #note-list li .del-btn { background: transparent; color: #f48771; font-size: 12px; padding: 2px 6px; }
+        #note-list li .del-btn:hover { color: #ff0000; }
+        #main { flex: 1; display: flex; flex-direction: column; }
+        .editor-header { padding: 10px 20px; background: #2d2d2d; border-bottom: 1px solid #3c3c3c; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        input[type="text"] { background: #3c3c3c; border: 1px solid #555; color: #fff; padding: 6px 10px; border-radius: 4px; flex: 1; font-size: 14px; min-width: 150px; }
+        select { background: #3c3c3c; border: 1px solid #555; color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 14px; }
+        textarea { flex: 1; background: #1e1e1e; color: #d4d4d4; border: none; padding: 20px; font-family: 'Consolas', 'Courier New', monospace; font-size: 14px; resize: none; outline: none; line-height: 1.5; }
+        .file-controls { display: flex; gap: 8px; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h2>Ghi chú</h2>
+            <button onclick="createNote()">+ Tạo mới</button>
+        </div>
+        <ul id="note-list"></ul>
+    </div>
+    <div id="main">
+        <div class="editor-header">
+            <input type="text" id="note-title" placeholder="Tiêu đề ghi chú..." oninput="updateNote()">
+            <select id="note-ext" onchange="updateNote()">
+                <option value="lua">.lua (Lua)</option>
+                <option value="txt">.txt (Văn bản)</option>
+                <option value="html">.html (HTML)</option>
+                <option value="css">.css (CSS)</option>
+                <option value="js">.js (JavaScript)</option>
+                <option value="py">.py (Python)</option>
+                <option value="json">.json (JSON)</option>
+                <option value="md">.md (Markdown)</option>
+            </select>
+            <div class="file-controls">
+                <button class="btn-sec" onclick="document.getElementById('file-input').click()">📂 Mở tệp</button>
+                <input type="file" id="file-input" style="display:none" onchange="openFile(event)">
+                <button onclick="downloadFile()">💾 Tải về tệp</button>
+            </div>
+        </div>
+        <textarea id="note-content" placeholder="Nhập nội dung ghi chú hoặc code ở đây..." oninput="updateNote()"></textarea>
+    </div>
+
+    <script>
+        let notes = JSON.parse(localStorage.getItem('my_notes_v3') || '[]');
+        let activeId = null;
+
+        function saveToStorage() {
+            localStorage.setItem('my_notes_v3', JSON.stringify(notes));
+        }
+
+        function renderList() {
+            const list = document.getElementById('note-list');
+            list.innerHTML = '';
+            notes.forEach(note => {
+                const li = document.createElement('li');
+                if (note.id === activeId) li.classList.add('active');
+                const ext = note.ext || 'lua';
+                li.innerHTML = `<span>${note.title || 'Không tiêu đề'}.${ext}</span> <button class="del-btn" onclick="deleteNote(event, '${note.id}')">✕</button>`;
+                li.onclick = () => selectNote(note.id);
+                list.appendChild(li);
+            });
+        }
+
+        function createNote(title = 'Ghi_chu_moi', ext = 'lua', content = '') {
+            const newNote = {
+                id: Date.now().toString(),
+                title: title,
+                ext: ext,
+                content: content
+            };
+            notes.unshift(newNote);
+            activeId = newNote.id;
+            saveToStorage();
+            renderList();
+            loadActiveNote();
+        }
+
+        function selectNote(id) {
+            activeId = id;
+            renderList();
+            loadActiveNote();
+        }
+
+        function loadActiveNote() {
+            const note = notes.find(n => n.id === activeId);
+            if (!note) {
+                document.getElementById('note-title').value = '';
+                document.getElementById('note-content').value = '';
+                return;
+            }
+            document.getElementById('note-title').value = note.title;
+            document.getElementById('note-ext').value = note.ext || 'lua';
+            document.getElementById('note-content').value = note.content;
+        }
+
+        function updateNote() {
+            if (!activeId) return;
+            const note = notes.find(n => n.id === activeId);
+            if (!note) return;
+            note.title = document.getElementById('note-title').value;
+            note.ext = document.getElementById('note-ext').value;
+            note.content = document.getElementById('note-content').value;
+            saveToStorage();
+            renderList();
+        }
+
+        function deleteNote(e, id) {
+            e.stopPropagation();
+            notes = notes.filter(n => n.id !== id);
+            if (activeId === id) {
+                activeId = notes.length > 0 ? notes[0].id : null;
+            }
+            saveToStorage();
+            renderList();
+            loadActiveNote();
+        }
+
+        function downloadFile() {
+            if (!activeId) return;
+            const note = notes.find(n => n.id === activeId);
+            if (!note) return;
+            
+            const filename = (note.title || 'untitled') + '.' + (note.ext || 'lua');
+            const blob = new Blob([note.content], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        function openFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const content = evt.target.result;
+                const nameParts = file.name.split('.');
+                let ext = 'lua';
+                let title = file.name;
+                if (nameParts.length > 1) {
+                    ext = nameParts.pop();
+                    title = nameParts.join('.');
+                }
+                createNote(title, ext, content);
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        if (notes.length === 0) {
+            createNote();
+        } else {
+            activeId = notes[0].id;
+            renderList();
+            loadActiveNote();
+        }
+    </script>
+</body>
+</html>
